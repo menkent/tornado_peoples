@@ -4,21 +4,19 @@ import logging.config
 logging.config.fileConfig("logging.conf")
 log = logging.getLogger(__name__)
 
-import os
-
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
-from tornado.options import define, options
-from datetime import datetime
 
+from handlers.add_user import AddUserHandler
+from handlers.find_users import FindUsersHandler
 
 
 class Application(tornado.web.Application):
     def __init__(self):
         handlers = [
-            # (r"/", MainHandler),
-            # (r"/admin", AdminHandler),
+            (r"/", FindUsersHandler),
+            (r"/add", AddUserHandler),
         ]
 
 
@@ -32,11 +30,8 @@ class Application(tornado.web.Application):
         log.info('TORNADO PEOPLE SERVICE STARTED')
 
 
-
 def main():
     app = Application()
-    # http_server_1 = tornado.httpserver.HTTPServer(app)
-    # http_server_1.listen(12385)
     app.listen(12385)
     tornado.ioloop.IOLoop.instance().start()
 
