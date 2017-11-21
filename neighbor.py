@@ -4,32 +4,23 @@ import logging
 log = logging.getLogger(__name__)
 
 
-import uuid
-
-
-class Position(complex):
-    # info: для операций сложения, вычитания и abs
-    x = complex.real
-    y = complex.imag
-
-    def as_dict(self):
-        return dict(x=self.x, y=self.y)
-
-    def __str__(self):
-        "{}({:.2f}:{:.2f})".format(self.__class__.__name__, self.x, self.y)
-
-    def __repr__(self):
-        "{}({}:{})".format(self.__class__.__name__, self.x, self.y)
-
-    def distance_to(self, target):
-        return abs(target - self)
-
-
-
 class Neighbor(object):
     def __init__(self, name, x, y):
-        self.uid = uuid.UUID()
-        self.name
+        self.name = name
+        self.x = x
+        self.y = y
 
-    def get(self):
-        self.render()
+    @property
+    def position(self):
+        return [self.x, self.y]
+
+    def save(self, collection):
+        if self.x is None or self.y is None:
+            log.warn("Bad coordinate: %s %s", self.x, self.y)
+            return None
+        return collection.insert({'name': self.name, 'position': {'type': 'Point', 'coordinates': [self.x, self.y]}})
+
+    @classmethod
+    def from_mongo(cls, d):
+        coords = d.get(u'position').get(u'coordinates')
+        return cls(name=d.get(u'name'), x=coords[0], y=coords[1])
