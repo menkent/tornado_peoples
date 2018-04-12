@@ -7,8 +7,9 @@ log = logging.getLogger(__name__)
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
+import tornado.gen
 
-from pymongo import MongoClient
+import motor
 from bson.son import SON
 
 from handlers.main_handler import MainHandler, AddUsersHandler
@@ -26,8 +27,8 @@ class Application(tornado.web.Application):
         tornado.web.Application.__init__(self, handlers)
 
         try:
-            self.mongo_client = MongoClient()
-            self.db = self.mongo_client.test_neighbor
+            self.motor_client = motor.motor_tornado.MotorClient()
+            self.db = self.motor_client["test_neighbor"]
             self.neighbors = self.db["neighbors"]
             self.neighbors.ensure_index([("position", "2dsphere")])
         except:
@@ -35,13 +36,17 @@ class Application(tornado.web.Application):
 
         log.info('TORNADO PEOPLE SERVICE STARTED')
 
+    @tornado.gen.coroutine
     def add_neighbor(self, name, x, y):
-        Neighbor(name=name, x=x, y=y).save(collection=self.neighbors)
+        yield Neighbor(name=name, x=x, y=y).save(collection=self.neighbors)
 
+    @tornado.gen.coroutine
     def find_near_neighbor(self, x, y, limit=100):
-        res = self.neighbors.find({"position": SON([("$near", {"$geometry": SON([("type", "Point"), ("coordinates", [x, y])])})])}).limit(limit)
-        for d in res:
-            yield Neighbor.from_mongo(d)
+        result_list = []
+        cursor = self.neighbors.find({"position": SON([("$near", {"$geometry": SON([("type", "Point"), ("coordinates", [x, y])])})])}).limit(limit)
+        while (yield cursor.fetch_next):
+            result_list.append(Neighbor.from_mongo(cursor.next_object()))
+        raise tornado.gen.Return(result_list)
 
 
 def main():
